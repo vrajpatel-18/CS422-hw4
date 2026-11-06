@@ -1,0 +1,269 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\algnotext{EndFor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta}
+\usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue]{hyperref}
+
+\newtheorem{bound}{Bound}
+\theoremstyle{definition}
+\newtheorem*{claim}{Claim}
+
+\title{CS 422 Assignment 4: Maximum Concurrent Flow and Network Design\\[2pt]
+\large Part 1: Uniform Traffic Matrix}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\vspace{-3em}
+
+\section*{Answer}
+
+Number the nodes $0,\dots,n-1$ and let $k = (n-1)/d$. Every node uses the same $d$ \emph{jumps}: node $i$ links to
+$(i+j) \bmod n$ for each jump $j$, where the jumps are
+\[
+J = \{\, x \in \{1,\dots,n-1\} \;:\; x^d \equiv 1 \pmod n \,\}.
+\]
+For $n$ prime, $J$ has exactly $d$ elements (this is where $d \mid n-1$ is used). No topology can beat
+\[
+\theta^* \;=\; \frac{k}{2k-1},
+\]
+and our topology reaches it whenever every node is within 2 hops of every other. For example, $n=13$, $d=4$ gives
+$J=\{1,5,8,12\}$, every node is within 2 hops (checked in Section~\ref{sec:why}), and $\theta = \theta^* = 3/5$.
+
+\paragraph{Scope.} The upper bound holds for every $n$ and every topology. Finding the optimal topology for every $n$
+and $d$ is closely tied to the degree--diameter problem (how many nodes a degree-$d$ graph can fit within a given
+number of hops), which is a long-standing open problem. So the answer here is the bound, plus a construction that
+meets it exactly for prime $n$ whenever it has every node within 2 hops (Section~\ref{sec:lim}).
+
+\section{Setup}
+
+Each node has $d$ outgoing and $d$ incoming links of capacity 1, so the network has $nd$ units of capacity in total.
+Each node sends $\frac{d}{n-1}$ to each of the other $n-1$ nodes. The \emph{concurrent flow} $\theta$ is the largest
+factor for which $\theta T$ fits on the links. Notation:
+\begin{itemize}
+\item $\mathrm{hops}(s,t)$: the fewest links needed to get from $s$ to $t$.
+\item $A$: the average of $\mathrm{hops}(s,t)$ over all $n(n-1)$ ordered pairs.
+\item $k = (n-1)/d$: the number of destinations per outgoing link (an integer by assumption).
+\end{itemize}
+
+\section{Upper bounds that hold for every topology}
+
+\begin{bound}\label{b:1}
+For every topology, $\theta \le 1/A$.
+\end{bound}
+\begin{proof}
+Each unit of traffic from $s$ to $t$ crosses at least $\mathrm{hops}(s,t)$ links and uses one unit of capacity on
+each. So the scaled traffic uses at least
+\[
+\theta\cdot\frac{d}{n-1}\cdot\sum_{s\ne t}\mathrm{hops}(s,t) \;=\; \theta \cdot nd \cdot A
+\]
+units of capacity. Only $nd$ units exist, so $\theta\, nd\, A \le nd$, i.e.\ $\theta \le 1/A$.
+\end{proof}
+
+\noindent Bound~\ref{b:1} is met with equality only if (i) all traffic follows shortest routes and (ii) every link is
+completely full. So a good topology needs \textbf{few hops} and \textbf{evenly spread load}.
+
+\begin{bound}\label{b:2}
+For every topology, $A \ge \frac{2k-1}{k}$, so $\theta \le \frac{k}{2k-1}$.
+\end{bound}
+\begin{proof}
+A node has only $d$ outgoing links, so at most $d$ of its $n-1$ destinations, a fraction $1/k$, are 1 hop away. All
+others are at least 2 hops away. So $A \ge \frac{1}{k}\cdot 1 + \frac{k-1}{k}\cdot 2 = \frac{2k-1}{k}$, and
+Bound~\ref{b:1} gives $\theta \le \frac{k}{2k-1}$.
+\end{proof}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{l ccccc}
+\toprule
+$k = (n-1)/d$ & 1 & 2 & 3 & 4 & large \\
+\midrule
+best possible $\theta^*$ & 1 & 2/3 & 3/5 & 4/7 & $\to 1/2$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+\noindent The case $k=1$ ($d = n-1$) is the complete graph: every pair has a direct link and $\theta^*=1$.
+
+\section{The construction}
+
+\begin{algorithm}[H]
+\caption{\textsc{BuildTopology}$(n,d)$, for $n$ prime and $d \mid n-1$}
+\begin{algorithmic}[1]
+\State $J \gets \{\, x \in \{1,\dots,n-1\} : x^d \bmod n = 1 \,\}$ \Comment{exactly $d$ jumps}
+\For{each node $i = 0,\dots,n-1$}
+  \For{each jump $j \in J$}
+    \State add link $i \to (i+j) \bmod n$ \Comment{capacity 1}
+  \EndFor
+\EndFor
+\State \textbf{Routing:} split the traffic of each pair evenly over all its shortest routes.
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{Why it is a valid topology.} Node $i$ has $d$ outgoing links (one per jump) and $d$ incoming links (from
+$i-j$ for each jump $j$). Jumps are distinct and nonzero, so there are no self-loops and no duplicate links. For $n$
+prime, $x^d \equiv 1$ has exactly $d$ solutions when $d \mid n-1$ (the nonzero numbers mod a prime form a cyclic group
+of size $n-1$), so $|J| = d$.
+
+\paragraph{The key property.} The jumps are \emph{closed under multiplication}: if $x^d \equiv 1$ and $y^d \equiv 1$ then
+$(xy)^d \equiv 1$. Likewise, the inverse of a jump is a jump. For $n=7$, $d=3$: $J=\{1,2,4\}$, and
+$2\cdot 2=4$, $2\cdot4=8\equiv1$, $4\cdot4=16\equiv2$. Finding $J$ by hand is easy: $1^3=1$, $2^3=8\equiv1$,
+$4^3=64\equiv1 \pmod 7$, but $3^3 = 27 \equiv 6$, so $3 \notin J$.
+
+\begin{figure}[ht]
+\centering
+\tikzset{
+  v/.style={circle, draw, minimum size=6mm, inner sep=0pt, font=\small, fill=white},
+  e/.style={-{Stealth[length=2mm]}, thick, shorten >=0.5pt},
+  j1/.style={e, blue!70!black},
+  j2/.style={e, red!75!black},
+  j4/.style={e, green!50!black},
+}
+\begin{minipage}[b]{0.46\linewidth}
+\centering
+\begin{tikzpicture}
+  \foreach \i in {0,...,6} \node[v] (a\i) at ({90-360*\i/7}:1.9) {\i};
+  \foreach \i in {0,...,6} {
+    \pgfmathtruncatemacro{\p}{mod(\i+1,7)}
+    \pgfmathtruncatemacro{\q}{mod(\i+2,7)}
+    \pgfmathtruncatemacro{\r}{mod(\i+4,7)}
+    \draw[j1] (a\i) -- (a\p);
+    \draw[j2] (a\i) -- (a\q);
+    \draw[j4] (a\i) -- (a\r);
+  }
+  \foreach \c/\s/\x in {j1/1/-2.7, j2/2/-0.85, j4/4/1.0}
+    \draw[\c, -] (\x,-2.6) -- ++(0.35,0) node[right, font=\footnotesize, text=black] {$i \to i{+}\s$};
+\end{tikzpicture}\\[2pt]
+{\small (a) the topology: jumps $\{1,2,4\}$}
+\end{minipage}\hfill
+\begin{minipage}[b]{0.46\linewidth}
+\centering
+\begin{tikzpicture}
+  \node[v] (b0) at (0,0) {0};
+  \node[v] (b1) at (2,1.2) {1};
+  \node[v] (b2) at (2,0) {2};
+  \node[v] (b4) at (2,-1.2) {4};
+  \node[v] (b3) at (4,1.2) {3};
+  \node[v] (b5) at (4,0) {5};
+  \node[v] (b6) at (4,-1.2) {6};
+  \node[font=\small] at (2,1.9) {1 hop};
+  \node[font=\small] at (4,1.9) {2 hops};
+  \draw[j1] (b0) -- (b1);  \draw[j2] (b0) -- (b2);  \draw[j4] (b0) -- (b4);
+  \draw[j2] (b1) -- (b3);  \draw[j4] (b1) -- (b5);
+  \draw[j1] (b2) -- (b3);  \draw[j4] (b2) -- (b6);
+  \draw[j1] (b4) -- (b5);  \draw[j2] (b4) -- (b6);
+  \node at (0,-2.6) {};
+\end{tikzpicture}\\[2pt]
+{\small (b) shortest routes from node 0}
+\end{minipage}
+\caption{$n=7$, $d=3$, $J=\{1,2,4\}$. (a) The topology; colours mark the jump of each link. (b) From node 0, the
+3 jumps are 1 hop away and the other 3 nodes are 2 hops away, each reached by exactly two shortest routes
+($3=1+2=2+1$, $5=1+4=4+1$, $6=2+4=4+2$). So $A = 1.5$ and $\theta = 2/3$, which matches Bound~\ref{b:2}.}
+\label{fig:n7}
+\end{figure}
+
+\section{Why it maximizes the concurrent flow}\label{sec:why}
+
+This section shows the construction meets both bounds with equality. Claim~1 handles Bound~\ref{b:1} (the load is
+perfectly even), and Claim~2 handles Bound~\ref{b:2} (the hop count is as small as possible).
+
+\paragraph{What a relabeling is.} A relabeling renames every node, giving node $x$ the new name $\sigma(x)$. We use
+relabelings of one form:
+\[
+\sigma(x) = a\cdot x + b \pmod n, \qquad a \in J,\ b \text{ any number in } \{0,\dots,n-1\}.
+\]
+In words: multiply every node's number by a jump $a$, then shift every number by $b$. Each node gets a different new
+name, because $n$ is prime, so multiplying by $a \ne 0$ can be undone. We say a relabeling \emph{maps the topology
+onto itself} if, after renaming, the set of links is exactly the same as before. When that happens, nothing about the
+network can tell two links apart: if one link had some special feature, the relabeling would carry that feature to
+another link.
+
+\paragraph{A worked example ($n=7$, $J=\{1,2,4\}$).} Take $a=4$, $b=2$, so $\sigma(x) = 4x+2 \bmod 7$:
+\begin{center}
+\begin{tabular}{l|ccccccc}
+old name $x$ & 0 & 1 & 2 & 3 & 4 & 5 & 6 \\
+new name $\sigma(x)$ & 2 & 6 & 3 & 0 & 4 & 1 & 5
+\end{tabular}
+\end{center}
+The link $0\to1$ (jump 1) becomes $2\to6$, which is a link (jump 4). The link $0\to4$ (jump 4) becomes $2\to4$, also a
+link (jump 2). Every link maps to a link this way. This particular $\sigma$ also sends the link $3\to5$ onto the link
+$0\to1$: $\sigma(3)=0$ and $\sigma(5)=1$.
+
+\begin{claim}[1: every link carries the same load, so $\theta = 1/A$]
+\end{claim}
+\begin{proof}
+We check three facts about the relabelings $\sigma(x) = ax+b$.
+\begin{itemize}
+\item \emph{Each one maps the topology onto itself.} The link $x \to x+j$ is renamed to $\sigma(x) \to \sigma(x) + aj$.
+  Since $a$ and $j$ are both jumps, $aj$ is a jump (the key property), so the renamed link is a real link.
+\item \emph{Any link can be moved onto any other.} To move the link $i \to i+j$ onto $0 \to 1$, use $a = j^{-1}$ (a
+  jump, since inverses of jumps are jumps) and $b = -j^{-1} i$. Then $\sigma(i) = 0$ and $\sigma(i+j) = j^{-1}j = 1$.
+  In the example above, $j=2$, $j^{-1}=4$ and $i=3$ give exactly $\sigma(x)=4x+2$. Any link can be moved to $0\to1$
+  and back out again, so any link can be moved onto any other.
+\item \emph{Nothing else changes either.} The traffic is the same amount between every pair, and the routing rule
+  (split evenly over shortest routes) only looks at hop counts. Renaming nodes changes neither.
+\end{itemize}
+Now suppose link $e$ carries some load. Pick a relabeling that moves $e$ onto another link $e'$. After renaming, the
+network, the traffic and the routing are all exactly as before, so $e'$ must carry the same load that $e$ did. Hence
+all $nd$ links carry the same load. The total load is $\theta \cdot nd \cdot A$ (from the proof of Bound~\ref{b:1}),
+so each link carries $\theta A$. Setting $\theta = 1/A$ fills every link exactly to capacity. That routing is
+feasible, and Bound~\ref{b:1} says nothing larger is, so $\theta = 1/A$.
+\end{proof}
+
+\begin{claim}[2: within 2 hops, $A$ meets Bound~\ref{b:2}]
+\end{claim}
+\begin{proof}
+The 1-hop destinations of a node are exactly its $d$ jumps, the most Bound~\ref{b:2} allows. If every other node is
+a sum of two jumps, it is exactly 2 hops away, so $A = \frac{2k-1}{k}$ and $\theta = \frac{k}{2k-1}$, the best
+possible. Every node sees the same picture as node 0 (rename with $a=1$, which just shifts every number by $b$), so
+checking node 0 suffices.
+\end{proof}
+
+\noindent Putting the two claims together: whenever every node is within 2 hops, our topology achieves
+$\theta^* = \frac{k}{2k-1}$, and no topology can do better.
+
+\paragraph{Checking the 2-hop condition by hand.} By Claim~2, it is enough to check that from node 0, every node
+that is not a jump is a sum of two jumps (mod $n$).
+\begin{itemize}
+\item $n=7$, $d=3$, $J=\{1,2,4\}$: the sums of two jumps are $\{1,2,3,4,5,6\}$ (mod 7), which cover all of $\{3,5,6\}$
+  (Figure~\ref{fig:n7}). So $\theta = 2/3 = \theta^*$.
+\item $n=13$, $d=4$, $J=\{1,5,8,12\}$. Ignoring $0$, the sums of two jumps mod 13 are $\{2,\allowbreak 3,\allowbreak 4,\allowbreak 6,\allowbreak 7,\allowbreak 9,\allowbreak 10,\allowbreak 11\}$.
+  Together with $J$ this is all 12 other nodes. So $\theta = 3/5 = \theta^*$.
+\end{itemize}
+
+\paragraph{Why both properties matter ($n=13$, $d=4$).}
+\begin{itemize}
+\item Jumps $\{1,2,3,4\}$: from node 0, four nodes each are at 1, 2 and 3 hops, so $A = 2$ and $\theta \le 1/2$ by
+  Bound~\ref{b:1}. Too many hops.
+\item Jumps $\{1,2,6,9\}$: also within 2 hops (the sums of two jumps give $\{2,3,4,5,7,8,10,11,12\}$), with the same
+  $A = 5/3$ as ours. But $\{1,2,6,9\}$ is not closed under multiplication ($2\cdot2=4 \notin J$), so the relabelings of
+  Claim~1 do not map this graph onto itself. Nothing then forces every link to carry the same load, and Bound~\ref{b:1}
+  is only met if every link is exactly full. Few hops alone are not enough.
+\item Our jumps $\{1,5,8,12\}$: within 2 hops, and every link carries the same load (Claim~1), so
+  $\theta = 3/5 = 0.600$, the best possible.
+\end{itemize}
+
+\section{Limitations}\label{sec:lim}
+\begin{itemize}
+\item \textbf{$n$ must be prime} for this construction. Only then is $|J| = d$ guaranteed, and only then does every
+  relabeling in Claim~1 give each node a different name. Bounds~\ref{b:1} and~\ref{b:2} hold for every $n$.
+\item \textbf{Very sparse networks.} A node reaches at most $d$ nodes in 1 hop and $d^2$ in 2 hops. If
+  $d + d^2 < n-1$, not everyone can be within 2 hops, so no topology reaches Bound~\ref{b:2}. (Counting $d^3$ nodes at
+  3 hops, and so on, gives a tighter bound.) Even when $d + d^2 = n-1$ exactly, every 2-hop route would have to land
+  on a different node, and it is known that no such graph exists for $d \ge 2$. For example, $n=13$, $d=3$ has
+  $d+d^2 = 12 = n-1$, so no topology reaches Bound~\ref{b:2} there.
+\item \textbf{The jumps do not always give 2 hops.} Even when the counting above allows 2 hops, our jumps can need 3.
+  For $n=17$, $d=4$ ($d+d^2 = 20 \ge 16$), the jumps are $\{1,4,13,16\}$, and the sums of two jumps (mod 17, ignoring
+  $0$) are $\{2,3,5,8,9,12,14,15\}$. Together with $J$ that is only 12 of the 16 other nodes: $6, 7, 10$ and $11$ are
+  3 hops away. Then $A = (4\cdot1 + 8\cdot2 + 4\cdot3)/16 = 2$, so our $\theta = 1/2$ falls short of $k/(2k-1) = 4/7$.
+\item In both of these cases the load is still perfectly even ($\theta = 1/A$ exactly, by Claim~1), so the only loss
+  comes from the extra hops.
+\end{itemize}
+
+\end{document}
