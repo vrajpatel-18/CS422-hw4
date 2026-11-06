@@ -14,16 +14,21 @@
 \theoremstyle{definition}
 \newtheorem*{claim}{Claim}
 
-\title{CS 422 Assignment 4: Maximum Concurrent Flow and Network Design\\[2pt]
-\large Part 1: Uniform Traffic Matrix}
-\author{}
+\title{CS 422 Assignment 4: Maximum Concurrent Flow and Network Design}
+\author{Group 6: Vraj Patel, Rahul Siddharth, Priyanka Soe, Jay Sunkara}
 \date{}
 
 \begin{document}
 \maketitle
 \vspace{-3em}
 
-\section*{Answer}
+\begin{center}
+Code repository: \url{https://github.com/vrajpatel-18/CS422-hw4}
+\end{center}
+
+\section{Part 1: Uniform Traffic Matrix}\label{p1}
+
+\subsection{Answer}
 
 Number the nodes $0,\dots,n-1$ and let $k = (n-1)/d$. Every node uses the same $d$ \emph{jumps}: node $i$ links to
 $(i+j) \bmod n$ for each jump $j$, where the jumps are
@@ -35,14 +40,14 @@ For $n$ prime, $J$ has exactly $d$ elements (this is where $d \mid n-1$ is used)
 \theta^* \;=\; \frac{k}{2k-1},
 \]
 and our topology reaches it whenever every node is within 2 hops of every other. For example, $n=13$, $d=4$ gives
-$J=\{1,5,8,12\}$, every node is within 2 hops (checked in Section~\ref{sec:why}), and $\theta = \theta^* = 3/5$.
+$J=\{1,5,8,12\}$, every node is within 2 hops (checked in Section~\ref{p1:why}), and $\theta = \theta^* = 3/5$.
 
 \paragraph{Scope.} The upper bound holds for every $n$ and every topology. Finding the optimal topology for every $n$
 and $d$ is closely tied to the degree--diameter problem (how many nodes a degree-$d$ graph can fit within a given
 number of hops), which is a long-standing open problem. So the answer here is the bound, plus a construction that
-meets it exactly for prime $n$ whenever it has every node within 2 hops (Section~\ref{sec:lim}).
+meets it exactly for prime $n$ whenever it has every node within 2 hops (Section~\ref{p1:lim}).
 
-\section{Setup}
+\subsection{Setup}
 
 Each node has $d$ outgoing and $d$ incoming links of capacity 1, so the network has $nd$ units of capacity in total.
 Each node sends $\frac{d}{n-1}$ to each of the other $n-1$ nodes. The \emph{concurrent flow} $\theta$ is the largest
@@ -53,7 +58,7 @@ factor for which $\theta T$ fits on the links. Notation:
 \item $k = (n-1)/d$: the number of destinations per outgoing link (an integer by assumption).
 \end{itemize}
 
-\section{Upper bounds that hold for every topology}
+\subsection{Upper bounds that hold for every topology}
 
 \begin{bound}\label{b:1}
 For every topology, $\theta \le 1/A$.
@@ -91,7 +96,7 @@ best possible $\theta^*$ & 1 & 2/3 & 3/5 & 4/7 & $\to 1/2$ \\
 \end{table}
 \noindent The case $k=1$ ($d = n-1$) is the complete graph: every pair has a direct link and $\theta^*=1$.
 
-\section{The construction}
+\subsection{The construction}
 
 \begin{algorithm}[H]
 \caption{\textsc{BuildTopology}$(n,d)$, for $n$ prime and $d \mid n-1$}
@@ -168,7 +173,7 @@ $4^3=64\equiv1 \pmod 7$, but $3^3 = 27 \equiv 6$, so $3 \notin J$.
 \label{fig:n7}
 \end{figure}
 
-\section{Why it maximizes the concurrent flow}\label{sec:why}
+\subsection{Why it maximizes the concurrent flow}\label{p1:why}
 
 This section shows the construction meets both bounds with equality. Claim~1 handles Bound~\ref{b:1} (the load is
 perfectly even), and Claim~2 handles Bound~\ref{b:2} (the hop count is as small as possible).
@@ -249,7 +254,7 @@ that is not a jump is a sum of two jumps (mod $n$).
   $\theta = 3/5 = 0.600$, the best possible.
 \end{itemize}
 
-\section{Limitations}\label{sec:lim}
+\subsection{Limitations}\label{p1:lim}
 \begin{itemize}
 \item \textbf{$n$ must be prime} for this construction. Only then is $|J| = d$ guaranteed, and only then does every
   relabeling in Claim~1 give each node a different name. Bounds~\ref{b:1} and~\ref{b:2} hold for every $n$.
@@ -265,5 +270,7 @@ that is not a jump is a sum of two jumps (mod $n$).
 \item In both of these cases the load is still perfectly even ($\theta = 1/A$ exactly, by Claim~1), so the only loss
   comes from the extra hops.
 \end{itemize}
+
+\section{Part 2: Arbitrary Traffic Matrix}
 
 \end{document}
