@@ -272,5 +272,272 @@ that is not a jump is a sum of two jumps (mod $n$).
 \end{itemize}
 
 \section{Part 2: Arbitrary Traffic Matrix}
+We chose to do the linear integer programming formulation for Part 2. The initial problem for the project specifies designing a network topology that maximizes the concurrent flow for the given traffic matrix. We are given a traffic matrix with 8 nodes, 4 incoming links, and 4 outgoing links per node, with each link having a capacity of 1 unit. We are also given the hose model traffic set, which essentially gives us the following constraints:
+
+\begin{itemize}
+    \item No node sends or receives units to/from itself, specified by:
+    \[
+    T_{ii} = 0 \quad \forall i
+    \]
+
+    \item The sum of all the units node $i$ can send out must be less than or equal to 4:
+    \[
+    \sum_{j=1}^{8} T_{ij} \leq 4 \quad \forall i
+    \]
+
+    \item The sum of all the units node $j$ can receive must be less than or equal to 4:
+    \[
+    \sum_{i=1}^{8} T_{ij} \leq 4 \quad \forall j
+    \]
+\end{itemize}
+
+In addition, no nodes can send negative traffic, so $T_{ij} \geq 0$. From this problem, we can derive our decision variables, objective function, and constraints as follows.
+
+\subsection{Decision Variables}
+
+In this problem, there are two major things we are concerned about: 1) where to direct the 4 incoming and 4 outgoing links (existence of links) and 2) the units each link sends (flow). To account for 1, we create the first decision variable:
+
+\[
+x_{ij} \in \{0,1\}
+\]
+
+Where $x_{ij}$ is 1 if there exists a directed link from $i$ to $j$, and 0 otherwise. We assume that there can be at most one directed link from $i$ to $j$.
+
+For flow, we use:
+
+\[
+f_{ij}^{st} \geq 0
+\]
+
+Where $f_{ij}^{st}$ represents the units $s$ sends to $t$ that flow across the link $i \rightarrow j$.
+
+We use this variable because traffic may not always travel directly from its source to its destination. Instead, it may have to pass through intermediate nodes, so we need to keep track of how much traffic from each source-destination pair travels across each link.
+
+We also define $K$ as the set of source-destination pairs with positive traffic demand:
+
+\[
+K = \{(s,t) \mid s \neq t,\ T_{st} > 0\}
+\]
+
+Finally, we introduce another decision variable:
+
+\[
+\lambda \geq 0
+\]
+
+Where $\lambda$ represents the concurrent flow factor. Essentially, this tells us what fraction or multiple of the requested traffic demands the network can support simultaneously. For example, if $\lambda = 0.7$, the network can support 70\% of each requested traffic demand.
+
+\subsection{Objective Function}
+
+Our goal is to maximize the concurrent flow for the given traffic matrix. Since $\lambda$ represents the concurrent flow factor, our objective function is:
+
+\[
+\boxed{\max \lambda}
+\]
+
+By maximizing $\lambda$, we are finding the network topology that can support the largest common scaling factor of the traffic demands while still satisfying the link capacity and topology constraints.
+
+\subsection{Constraints}
+
+We have several constraints to ensure that the topology we design is valid and that traffic can actually be routed through the network.
+
+\subsubsection{Outgoing Link Constraint}
+
+Each node must have exactly 4 outgoing links. Since $x_{ij}$ represents whether a directed link exists from $i$ to $j$, we can specify this as:
+
+\[
+\sum_{j=1}^{8} x_{ij} = 4 \quad \forall i
+\]
+
+This ensures that every node has exactly 4 outgoing connections.
+
+\subsubsection{Incoming Link Constraint}
+
+Similarly, each node must have exactly 4 incoming links:
+
+\[
+\sum_{i=1}^{8} x_{ij} = 4 \quad \forall j
+\]
+
+This ensures that every node has exactly 4 incoming connections.
+
+\subsubsection{No Self-Links}
+
+Since nodes do not need to send traffic to themselves, we do not allow a directed link from a node to itself:
+
+\[
+x_{ii} = 0 \quad \forall i
+\]
+
+\subsubsection{Link Capacity Constraint}
+
+Each directed link has a capacity of 1 unit. Therefore, the total traffic flowing through any link cannot exceed 1.
+
+We specify this as:
+
+\[
+\sum_{(s,t)\in K} f_{ij}^{st} \leq x_{ij}
+\quad \forall i \neq j
+\]
+
+This constraint accounts for both the capacity of a link and whether the link exists.
+
+If $x_{ij} = 0$, then no traffic can flow through that link because it does not exist. If $x_{ij} = 1$, then the sum of all traffic flowing through the link can be at most 1 unit.
+
+We sum over all source-destination pairs because multiple traffic demands may use the same link, and their combined flow must still satisfy the capacity constraint.
+
+\subsubsection{Flow Conservation Constraint}
+
+We also need to ensure that traffic is properly routed from its source to its destination. In particular, any intermediate node must send out the same amount of traffic that it receives for a given source-destination pair.
+
+For every $(s,t) \in K$ and every node $v$, we use:
+
+\[
+\sum_{j=1}^{8} f_{vj}^{st}
+-
+\sum_{i=1}^{8} f_{iv}^{st}
+=
+\begin{cases}
+\lambda T_{st} & \text{if } v=s \\
+-\lambda T_{st} & \text{if } v=t \\
+0 & \text{otherwise}
+\end{cases}
+\]
+
+This gives us three different cases:
+
+\begin{itemize}
+    \item If $v=s$, then the node is the source. Its net outgoing traffic must equal $\lambda T_{st}$, since this is the amount of traffic we are trying to send.
+
+    \item If $v=t$, then the node is the destination. Its net incoming traffic must equal $\lambda T_{st}$, since this is the amount of traffic it needs to receive.
+
+    \item Otherwise, the node is an intermediate node. Its incoming and outgoing traffic must be equal because it is only forwarding traffic.
+\end{itemize}
+
+This ensures that traffic cannot be created or lost while traveling through the network.
+
+Finally, we also specify:
+
+\[
+f_{ii}^{st} = 0
+\quad \forall i,\ (s,t)\in K
+\]
+
+This prevents traffic from flowing through self-links.
+
+Together with the nonnegative flow variables and binary topology variables, these constraints ensure that the resulting topology and routing are valid.
+
+\subsection{Intuition Behind the Formulation}
+
+The main idea behind our formulation is that we are optimizing both the topology and the routing of traffic at the same time.
+
+The binary variables $x_{ij}$ determine which directed links should exist, while the continuous variables $f_{ij}^{st}$ determine how traffic should be routed through those links.
+
+The incoming and outgoing link constraints ensure that each node has exactly 4 incoming and 4 outgoing connections. The capacity constraints ensure that no link carries more than 1 unit of traffic, and the flow conservation constraints ensure that traffic is properly routed from its source to its destination.
+
+By maximizing $\lambda$, we are finding the topology that can support the greatest common scaling factor of all the traffic demands.
+
+Since the topology variables are binary and the flow variables are continuous, this is a mixed-integer linear programming problem (MILP). We implemented this formulation using the Gurobi Python API.
+
+Our formulation works for any given traffic matrix in the hose model because the traffic matrix is provided as an input to the program. Depending on how traffic is distributed, Gurobi can choose a different topology to maximize the concurrent flow.
+
+Under our assumption that there is at most one directed link between any two nodes and that traffic can be split across multiple paths, the formulation considers all valid topologies and feasible routings. Therefore, when Gurobi finds an optimal solution, no other solution satisfying these constraints can achieve a higher concurrent flow factor for the given traffic matrix.
+
+\subsection{Implementation}
+
+We implemented the formulation in Python using the Gurobi optimization library.
+
+The program takes an $8 \times 8$ traffic matrix as input and first identifies all source-destination pairs with positive traffic demand. It then creates the binary topology variables, continuous flow variables, and concurrent flow factor.
+
+Next, we add the incoming and outgoing degree constraints, link capacity constraints, and flow conservation constraints described above.
+
+Finally, we use Gurobi to maximize $\lambda$. After optimization, the program outputs the optimal concurrent flow factor and the directed links selected for the resulting topology.
+
+We also included a check for the case where the traffic matrix contains no positive demands. In this case, there is no traffic to route, so the concurrent flow factor is unbounded.
+
+\subsection{Results}
+
+To test our implementation, we used three different traffic matrices: uniform, sparse, and nonuniform. All three satisfy the hose model constraints, with each node having a total incoming and outgoing traffic demand of 4 units.
+
+The results are summarized below:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lcc}
+\toprule
+\textbf{Traffic Matrix} & \textbf{Optimal $\lambda$} & \textbf{Solve Time (s)} \\
+\midrule
+Uniform & 0.7000 & 0.14 \\
+Sparse & 0.6111 & 0.30 \\
+Nonuniform & 0.7742 & 0.36 \\
+\bottomrule
+\end{tabular}
+\caption{Optimal concurrent flow factors for three traffic matrices.}
+\end{table}
+
+\subsubsection{Uniform Traffic Matrix}
+
+For the uniform traffic matrix, every node sends an equal amount of traffic to every other node. In this case, each non-diagonal entry of the traffic matrix is $4/7$.
+
+Gurobi found an optimal concurrent flow factor of:
+
+\[
+\lambda = 0.7
+\]
+
+This means that the optimal topology can support 70\% of each requested traffic demand simultaneously.
+
+\subsubsection{Sparse Traffic Matrix}
+
+For the sparse traffic matrix, each node sends all 4 units of its traffic to a single destination. Specifically, node 0 sends to node 1, node 1 sends to node 2, and so on, with node 7 sending to node 0.
+
+Gurobi found an optimal concurrent flow factor of:
+
+\[
+\lambda \approx 0.6111
+\]
+
+This means that each source-destination pair can send approximately:
+
+\[
+4(0.6111) \approx 2.4444
+\]
+
+units of traffic.
+
+This result is lower than the uniform case. Since each source sends all its traffic to a single destination, some of the traffic must travel through intermediate nodes, which also use link capacity.
+
+\subsubsection{Nonuniform Traffic Matrix}
+
+For the nonuniform traffic matrix, each node distributes its 4 units of traffic across three destinations, with demands of 2, 1.5, and 0.5 units.
+
+Gurobi found an optimal concurrent flow factor of:
+
+\[
+\lambda \approx 0.7742
+\]
+
+This was the highest concurrent flow factor among the three test cases. In this case, the traffic is distributed across multiple destinations, allowing the chosen topology to route a greater fraction of the requested traffic.
+
+However, this does not necessarily mean that nonuniform traffic matrices will always have a higher concurrent flow factor. The result depends on the specific distribution of traffic.
+
+\subsubsection{Overall Results}
+
+For all three tests, Gurobi reported an optimality gap of 0\%, meaning that it verified the solutions were optimal under our formulation.
+
+In addition, each resulting topology contained 32 directed links, with exactly 4 incoming and 4 outgoing links per node.
+
+These results show that the optimal concurrent flow factor depends on how traffic is distributed across the network. They also demonstrate that our formulation can adapt the network topology to different traffic matrices rather than using the same fixed topology for every case.
+
+\subsection{Conclusion}
+
+Overall, our linear integer programming formulation allows us to find the optimal network topology for any given nonzero traffic matrix satisfying the hose model constraints, under our simple directed graph assumption.
+
+By optimizing both the existence of links and the routing of traffic, we can maximize the concurrent flow factor while ensuring that all degree, capacity, and flow conservation constraints are satisfied.
+
+Our Gurobi implementation successfully found optimal solutions for all three test matrices, demonstrating that the formulation works for different distributions of traffic.
+
+
+
 
 \end{document}
